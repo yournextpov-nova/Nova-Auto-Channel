@@ -1,0 +1,49 @@
+# ============================================================
+# EDIT THIS FILE to control your channel. Nothing else needs
+# to change for day-to-day operation.
+# ============================================================
+
+channel:
+  name: "Next POV"
+  language: "English"
+
+# The "character bible" is injected into EVERY script prompt and
+# EVERY image prompt, so Nova / the cat / the panda stay
+# recognizable across videos even though the images are freshly
+# generated each time.
+characters:
+  nova: >
+    Nova, a kind and curious young girl, around 8-10 years old,
+    short brown hair with a small braid, wears a blue hoodie and
+    yellow sneakers, big expressive eyes, always smiling and brave.
+  cat: >
+    a fat orange tabby cat named Biscuit, round and chubby, short
+    orange fur with darker stripes, big green eyes, lazy but loyal,
+    often seen eating or napping, comic relief character.
+  panda: >
+    a gentle giant panda named Momo, big and round, calm and wise,
+    black and white fur, small round glasses (signature item),
+    speaks slowly and gives thoughtful advice.
+
+art_style: >
+  Pixar-style 3D animated cartoon render, soft global illumination,
+  warm cheerful color palette, smooth rounded shapes, family-friendly,
+  cinematic children's animated movie still, highly detailed, 3D render
+
+video:
+  target_length_minutes: 6
+  audience: "kids, family-friendly, no violence, no scary content"
+  # Leave blank to let the AI invent a new story each day using the
+  # characters above. Or add fixed ideas here and it will use them
+  # in order before falling back to inventing new ones.
+  topic_ideas: []
+
+upload:
+  privacy_status: "public"   # public | unlisted | private
+  category_id: "1"            # 1 = Film & Animation
+  default_tags:
+    - "Nova"
+    - "kids story"
+    - "animated story"
+    - "pixar style"
+    - "bedtime story"
