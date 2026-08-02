@@ -17,14 +17,24 @@ GEMINI_URL = (
 
 
 def _call_gemini(prompt: str) -> str:
-    resp = requests.post(
-        GEMINI_URL,
-        json={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout=120,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+    import time
+    last_error = None
+    for attempt in range(5):
+        resp = requests.post(
+            GEMINI_URL,
+            json={"contents": [{"parts": [{"text": prompt}]}]},
+            timeout=120,
+        )
+        if resp.status_code == 429:
+            wait = 15 * (attempt + 1)
+            print(f"Rate limited, waiting {wait}s before retry...")
+            time.sleep(wait)
+            last_error = resp
+            continue
+        resp.raise_for_status()
+        data = resp.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    last_error.raise_for_status()
 
 
 def generate_story(config: dict, topic: str | None = None) -> dict:
