@@ -11,22 +11,24 @@ import requests
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 GEMINI_URL = (
+    GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY
+    "gemini-1.5-flash:generateContent?key=" + GEMINI_API_KEY
+)
 )
 
 
 def _call_gemini(prompt: str) -> str:
     import time
     last_error = None
-    for attempt in range(5):
+    for attempt in range(6):
         resp = requests.post(
             GEMINI_URL,
             json={"contents": [{"parts": [{"text": prompt}]}]},
             timeout=120,
         )
         if resp.status_code == 429:
-            wait = 15 * (attempt + 1)
+            wait = 30 * (attempt + 1)
             print(f"Rate limited, waiting {wait}s before retry...")
             time.sleep(wait)
             last_error = resp
