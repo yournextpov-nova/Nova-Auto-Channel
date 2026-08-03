@@ -14,7 +14,7 @@ import urllib.parse
 import requests
 
 POLLINATIONS_API_KEY = os.environ.get("POLLINATIONS_API_KEY")
-BASE_URL = "https://image.pollinations.ai/prompt/{prompt}"
+BASE_URL = "https://gen.pollinations.ai/image/{prompt}"
 
 
 def build_prompt(scene_description: str, config: dict) -> str:
@@ -35,7 +35,7 @@ def generate_image(scene_description: str, config: dict, out_path: str,
         prompt = prompt[:600]
     encoded = urllib.parse.quote(prompt)
     url = BASE_URL.format(prompt=encoded)
-    params = {"width": width, "height": height, "nologo": "true", "model": "flux"}
+    params = {"width": width, "height": height, "model": "flux"}
     if seed is not None:
         params["seed"] = seed
 
