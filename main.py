@@ -55,7 +55,7 @@ def main(topic: str | None):
         video_path=video_path,
         title=story["title"],
         description=story.get("description", ""),
-        tags=config["upload"]["default_tags"],
+        tags=story.get("tags", config["upload"]["default_tags"]),
         category_id=config["upload"]["category_id"],
         privacy_status=config["upload"]["privacy_status"],
     )
