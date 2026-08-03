@@ -108,7 +108,7 @@ shape:
     if raw.startswith("```"):
         raw = raw.strip("`")
         raw = raw.split("json", 1)[-1] if raw.lower().startswith("json") else raw
-    return json.loads(raw)
+    return json.loads(raw, strict=False)
 
 
 if __name__ == "__main__":
