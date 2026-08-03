@@ -74,10 +74,13 @@ Audience: {audience}
 Target spoken length: about {minutes} minutes (roughly {minutes * 130} words).
 {topic_line}
 SEO requirements:
-- Title: put the most important searchable keywords near the FRONT
-  (e.g. "Bedtime Story for Kids", "Cute Animal Story", the story's core
-  theme/emotion), include "Nova" once, keep it under 70 characters,
-  make it sound like a real children's-content title, not clickbait.
+- Title: MUST be between 50 and 70 characters (not shorter - short
+  titles waste searchable keyword space). Structure it as: a short
+  hook based on this story's theme/emotion, followed by " | ", followed
+  by 1-2 broad searchable category phrases (choose whichever fit best:
+  "Kids Bedtime Story", "Animated Story for Kids", "Cute Cartoon Story",
+  "Family Friendly Cartoon"). Include "Nova" once, somewhere natural.
+  Example shape: "Nova's Friendship Adventure | Kids Bedtime Story".
 - Description: 4-6 sentences. First 1-2 sentences must stand alone as a
   compelling hook (this is what shows before "Show more" on YouTube) and
   should include natural keywords like "kids story", "bedtime story",
