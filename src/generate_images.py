@@ -1,6 +1,7 @@
 """
-Generates one image per scene using Hugging Face's free Inference API
-(FLUX.1-schnell model). Character consistency is approximated by
+Generates one image per scene using Hugging Face Inference Providers
+(FLUX.1-schnell, auto-routed to whichever provider currently serves it —
+e.g. fal-ai, together, etc.). Character consistency is approximated by
 injecting the full character bible + art style into every prompt.
 
 Get a free token at https://huggingface.co/settings/tokens
@@ -12,13 +13,16 @@ NOTE: this is a free/no-cost approach, so characters will look
 starts earning, swapping this file for a paid consistent-character
 tool (e.g. one that accepts reference images) is the natural upgrade.
 """
+
 import os
 import time
-import requests
+from huggingface_hub import InferenceClient
+from huggingface_hub.errors import HfHubHTTPError
 
 HF_TOKEN = os.environ["HF_TOKEN"]
 MODEL = "black-forest-labs/FLUX.1-schnell"
-API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL}"
+
+client = InferenceClient(provider="auto", api_key=HF_TOKEN)
 
 
 def build_prompt(scene_description: str, config: dict) -> str:
@@ -35,47 +39,29 @@ def build_prompt(scene_description: str, config: dict) -> str:
 def generate_image(scene_description: str, config: dict, out_path: str,
                     width: int = 1344, height: int = 768, seed: int | None = None):
     prompt = build_prompt(scene_description, config)
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {"width": width, "height": height},
-    }
-    if seed is not None:
-        payload["parameters"]["seed"] = seed
 
-    last_status = None
-    last_text = ""
+    kwargs = {"width": width, "height": height}
+    if seed is not None:
+        kwargs["seed"] = seed
+
+    last_error = None
     for attempt in range(8):
         try:
-            r = requests.post(API_URL, headers=headers, json=payload, timeout=180)
-        except requests.exceptions.RequestException as e:
-            print(f"Request error on attempt {attempt + 1}: {e}")
-            time.sleep(15 * (attempt + 1))
-            continue
-
-        content_type = r.headers.get("content-type", "")
-        if r.status_code == 200 and content_type.startswith("image/"):
-            with open(out_path, "wb") as f:
-                f.write(r.content)
+            image = client.text_to_image(prompt, model=MODEL, **kwargs)
+            image.save(out_path)
             return out_path
-
-        if r.status_code == 503:
-            try:
-                wait = float(r.json().get("estimated_time", 20))
-            except Exception:
-                wait = 20
-            print(f"Model loading, waiting {wait:.0f}s before retry...")
-            time.sleep(wait + 2)
-            continue
-
-        last_status = r.status_code
-        last_text = r.text[:200] if r.text else ""
-        print(f"Image attempt {attempt + 1} failed: status={last_status} body={last_text}")
-        time.sleep(15 * (attempt + 1))
+        except HfHubHTTPError as e:
+            last_error = e
+            status = getattr(e.response, "status_code", None)
+            print(f"Image attempt {attempt + 1} failed: status={status} error={e}")
+            time.sleep(15 * (attempt + 1))
+        except Exception as e:
+            last_error = e
+            print(f"Image attempt {attempt + 1} failed: {e}")
+            time.sleep(15 * (attempt + 1))
 
     raise RuntimeError(
-        f"Image generation failed for scene: {scene_description} "
-        f"(last status={last_status}, body={last_text})"
+        f"Image generation failed for scene: {scene_description} (last error={last_error})"
     )
 
 
