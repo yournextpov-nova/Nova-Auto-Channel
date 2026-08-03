@@ -46,11 +46,21 @@ def generate_story(config: dict, topic: str | None = None) -> dict:
     minutes = config["video"]["target_length_minutes"]
     audience = config["video"]["audience"]
 
+    used_titles = config["video"].get("used_titles", [])
+    avoid_line = ""
+    if used_titles:
+        recent = used_titles[-15:]
+        avoid_line = (
+            "\nThese titles/ideas were already used recently - do NOT repeat "
+            "them or anything very similar (different characters doing the "
+            "same generic plot still counts as repetitive): "
+            + "; ".join(recent) + "\n"
+        )
     topic_line = (
         f'Base today\'s story on this idea: "{topic}".'
         if topic
         else "Invent a brand new, original story idea today - do not repeat "
-             "common cliches, make it fresh and fun."
+             "common cliches, make it fresh and fun." + avoid_line
     )
 
     prompt = f"""
