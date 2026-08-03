@@ -93,8 +93,6 @@ shape:
              "1-2 sentences, in chronological order"]
 }}
 """
-}}
-"""
     raw = _call_groq(prompt)
     raw = raw.strip()
     if raw.startswith("```"):
