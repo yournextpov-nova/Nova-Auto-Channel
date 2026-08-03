@@ -13,6 +13,7 @@ import time
 import urllib.parse
 import requests
 
+POLLINATIONS_API_KEY = os.environ.get("POLLINATIONS_API_KEY")
 BASE_URL = "https://gen.pollinations.ai/image/{prompt}"
 
 
@@ -40,9 +41,12 @@ def generate_image(scene_description: str, config: dict, out_path: str,
 
     last_status = None
     last_text = ""
+    headers = {}
+    if POLLINATIONS_API_KEY:
+        headers["Authorization"] = f"Bearer {POLLINATIONS_API_KEY}"
     for attempt in range(6):
         try:
-            r = requests.get(url, params=params, timeout=180)
+            r = requests.get(url, params=params, headers=headers, timeout=180)
         except requests.exceptions.RequestException as e:
             print(f"Request error on attempt {attempt + 1}: {e}")
             time.sleep(10 * (attempt + 1))
