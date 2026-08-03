@@ -35,6 +35,12 @@ def main(topic: str | None):
     story = generate_story(config, topic=topic)
     print("Title:", story["title"])
 
+    config["video"].setdefault("used_titles", [])
+    config["video"]["used_titles"].append(story["title"])
+    config["video"]["used_titles"] = config["video"]["used_titles"][-30:]
+    with open("config.yaml", "w") as f:
+        yaml.safe_dump(config, f, sort_keys=False)
+
     print("2/5 Generating voiceover...")
     audio_path = generate_voiceover(story["narration"], os.path.join(work_dir, "voice.mp3"))
 
