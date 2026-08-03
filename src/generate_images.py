@@ -13,7 +13,7 @@ import time
 import urllib.parse
 import requests
 
-BASE_URL = "https://image.pollinations.ai/prompt/{prompt}"
+BASE_URL = "https://gen.pollinations.ai/image/{prompt}"
 
 
 def build_prompt(scene_description: str, config: dict) -> str:
@@ -34,7 +34,7 @@ def generate_image(scene_description: str, config: dict, out_path: str,
         prompt = prompt[:600]
     encoded = urllib.parse.quote(prompt)
     url = BASE_URL.format(prompt=encoded)
-    params = {"width": width, "height": height, "nologo": "true"}
+    params = {"width": width, "height": height, "nologo": "true", "model": "flux"}
     if seed is not None:
         params["seed"] = seed
 
