@@ -29,20 +29,36 @@ def build_prompt(scene_description: str, config: dict) -> str:
 def generate_image(scene_description: str, config: dict, out_path: str,
                     width: int = 1344, height: int = 768, seed: int | None = None):
     prompt = build_prompt(scene_description, config)
+    # Very long URLs can get rejected/timeout on some free hosts - keep it reasonable.
+    if len(prompt) > 600:
+        prompt = prompt[:600]
     encoded = urllib.parse.quote(prompt)
     url = BASE_URL.format(prompt=encoded)
     params = {"width": width, "height": height, "nologo": "true"}
     if seed is not None:
         params["seed"] = seed
 
-    for attempt in range(3):
-        r = requests.get(url, params=params, timeout=120)
+    last_status = None
+    last_text = ""
+    for attempt in range(6):
+        try:
+            r = requests.get(url, params=params, timeout=180)
+        except requests.exceptions.RequestException as e:
+            print(f"Request error on attempt {attempt + 1}: {e}")
+            time.sleep(10 * (attempt + 1))
+            continue
         if r.status_code == 200 and r.content:
             with open(out_path, "wb") as f:
                 f.write(r.content)
             return out_path
-        time.sleep(5)
-    raise RuntimeError(f"Image generation failed for scene: {scene_description}")
+        last_status = r.status_code
+        last_text = r.text[:200] if r.text else ""
+        print(f"Image attempt {attempt + 1} failed: status={last_status} body={last_text}")
+        time.sleep(10 * (attempt + 1))
+    raise RuntimeError(
+        f"Image generation failed for scene: {scene_description} "
+        f"(last status={last_status}, body={last_text})"
+    )
 
 
 def generate_all_scene_images(scenes: list[str], config: dict, out_dir: str = "scenes"):
