@@ -1,35 +1,42 @@
 """
 Generates today's story script + a matching list of scene image prompts,
-using Google Gemini's free-tier API.
+using Groq's free-tier API (OpenAI-compatible chat completions).
 
-Get a free key at https://aistudio.google.com/apikey
-Set it as the GEMINI_API_KEY environment variable / GitHub secret.
+Get a free key at https://console.groq.com/keys
+Set it as the GROQ_API_KEY environment variable / GitHub secret.
 """
 import os
 import json
+import time
 import requests
 
-GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
-GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/models/" "gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY)
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
-def _call_gemini(prompt: str) -> str:
-    import time
+
+def _call_groq(prompt: str) -> str:
     last_error = None
-    for attempt in range(6):
+    for attempt in range(5):
         resp = requests.post(
-            GEMINI_URL,
-            json={"contents": [{"parts": [{"text": prompt}]}]},
+            GROQ_URL,
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            json={
+                "model": GROQ_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.9,
+            },
             timeout=120,
         )
         if resp.status_code == 429:
-            wait = 30 * (attempt + 1)
+            wait = 15 * (attempt + 1)
             print(f"Rate limited, waiting {wait}s before retry...")
             time.sleep(wait)
             last_error = resp
             continue
         resp.raise_for_status()
         data = resp.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        return data["choices"][0]["message"]["content"]
     last_error.raise_for_status()
 
 
@@ -70,7 +77,7 @@ shape:
              "1-2 sentences, in chronological order"]
 }}
 """
-    raw = _call_gemini(prompt)
+    raw = _call_groq(prompt)
     raw = raw.strip()
     if raw.startswith("```"):
         raw = raw.strip("`")
