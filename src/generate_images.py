@@ -18,7 +18,7 @@ import requests
 
 HF_TOKEN = os.environ["HF_TOKEN"]
 MODEL = "black-forest-labs/FLUX.1-schnell"
-API_URL = f"https://api-inference.huggingface.co/models/{MODEL}"
+API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL}"
 
 
 def build_prompt(scene_description: str, config: dict) -> str:
