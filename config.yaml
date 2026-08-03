@@ -45,6 +45,7 @@ video:
   # characters above. Or add fixed ideas here and it will use them
   # in order before falling back to inventing new ones.
   topic_ideas: []
+  used_titles: []
 
 upload:
   privacy_status: "public"   # public | unlisted | private
