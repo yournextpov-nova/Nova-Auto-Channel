@@ -40,6 +40,7 @@ def generate_image(scene_description: str, config: dict, out_path: str,
     prompt = build_prompt(scene_description, config)
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
     }
 
     last_status = None
