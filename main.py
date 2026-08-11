@@ -35,9 +35,10 @@ def main(topic: str | None):
     story = generate_story(config, topic=topic)
     print("Title:", story["title"])
 
-    config["video"].setdefault("used_titles", [])
-    config["video"]["used_titles"].append(story["title"])
-    config["video"]["used_titles"] = config["video"]["used_titles"][-30:]
+    # Remember this title so tomorrow's story avoids repeating it.
+    recent = config["video"].get("recent_titles", [])
+    recent.append(story["title"])
+    config["video"]["recent_titles"] = recent[-15:]
     with open("config.yaml", "w") as f:
         yaml.safe_dump(config, f, sort_keys=False)
 
@@ -51,11 +52,13 @@ def main(topic: str | None):
     video_path = assemble_video(image_paths, audio_path, os.path.join(work_dir, "final.mp4"))
 
     print("5/5 Uploading to YouTube...")
+    ai_tags = story.get("tags") or []
+    tags = list(dict.fromkeys(ai_tags + config["upload"]["default_tags"]))[:30]
     upload_video(
         video_path=video_path,
         title=story["title"],
         description=story.get("description", ""),
-        tags=story.get("tags", config["upload"]["default_tags"]),
+        tags=tags,
         category_id=config["upload"]["category_id"],
         privacy_status=config["upload"]["privacy_status"],
     )
