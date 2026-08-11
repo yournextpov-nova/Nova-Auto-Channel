@@ -103,10 +103,10 @@ shape:
                   "hashtags starting with #",
   "narration": "the full story, written to be read aloud by a narrator, "
                "broken into natural paragraphs",
-  "scenes": ["a visual description of scene 1", "scene 2", "... 5 to 6 scenes "
+  "scenes": ["a visual description of scene 1", "scene 2", "... 10 to 14 scenes "
              "total, each describing one key visual moment of the story in "
              "1-2 sentences, in chronological order"],
-  "tags": ["10 to 15 relevant YouTube SEO tags/keywords as short strings, "
+  "tags": ["15 to 20 relevant YouTube SEO tags/keywords as short strings, "
            "no # symbols, mix of broad and specific terms"]
 }}
 """
