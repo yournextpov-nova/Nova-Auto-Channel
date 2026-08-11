@@ -17,7 +17,7 @@ import subprocess
 import time
 import edge_tts
 
-DEFAULT_VOICE = "en-US-DavisNeural"  # deep, mature-sounding male voice
+DEFAULT_VOICE = "en-US-GuyNeural"  # widely-used, reliable male voice
 
 
 async def _synthesize_once(text: str, out_path: str, voice: str):
@@ -26,6 +26,9 @@ async def _synthesize_once(text: str, out_path: str, voice: str):
 
 
 def _synthesize_with_retry(text: str, out_path: str, voice: str, attempts: int = 5):
+    text = (text or "").strip()
+    if not text:
+        text = "..."
     last_err = None
     for attempt in range(attempts):
         try:
@@ -65,7 +68,7 @@ def generate_segment_voiceovers(segments: list[dict], out_dir: str,
     results = []
     for i, seg in enumerate(segments):
         out_path = os.path.join(out_dir, f"line_{i:02d}.mp3")
-        _synthesize_with_retry(seg["narration"], out_path, voice)
+        _synthesize_with_retry(seg.get("narration", ""), out_path, voice)
         duration = _get_duration(out_path)
         results.append({"audio_path": out_path, "duration": duration})
     return results
