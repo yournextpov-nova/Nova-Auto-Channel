@@ -91,11 +91,11 @@ def generate_image(scene_description: str, config: dict, out_path: str,
 def generate_all_scene_images(scenes: list[str], config: dict, out_dir: str = "scenes"):
     os.makedirs(out_dir, exist_ok=True)
     paths = []
-    shared_seed = int(time.time()) % 100000
+    base_seed = int(time.time()) % 100000
     for i, scene in enumerate(scenes):
         if i > 0:
             time.sleep(5)
         out_path = os.path.join(out_dir, f"scene_{i:02d}.png")
-        generate_image(scene, config, out_path, seed=shared_seed)
+        generate_image(scene, config, out_path, seed=base_seed + i)
         paths.append(out_path)
     return paths
