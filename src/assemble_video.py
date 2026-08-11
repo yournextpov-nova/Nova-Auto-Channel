@@ -1,65 +1,76 @@
 """
-Assembles the final video from per-segment images + per-segment audio
-clips using ffmpeg. Each image is shown for EXACTLY the duration of
-its own narration line, so the visual always matches what's being
-said - no more generic even-split slideshow timing.
+Generates one voiceover clip PER SEGMENT (not one long clip) so each
+image's on-screen duration can exactly match its own line of
+narration being spoken - this is what keeps visuals in sync with the
+story as it's told.
+
+Uses Microsoft Edge's free online TTS voices (via edge-tts). No API
+key needed.
+
+Voice choice: edge-tts doesn't include ElevenLabs' paid "Adam" voice,
+but en-US-GuyNeural / en-GB-RyanNeural / en-US-DavisNeural are the
+closest free deep/mature-sounding male options. Change DEFAULT_VOICE
+below to try others - list them with: edge-tts --list-voices
 """
+import asyncio
 import subprocess
-import os
+import time
+import edge_tts
+
+DEFAULT_VOICE = "en-US-DavisNeural"  # deep, mature-sounding male voice
 
 
-def assemble_video(image_paths: list[str], audio_paths: list[str],
-                    durations: list[float], out_path: str,
-                    width: int = 1920, height: int = 1080):
-    assert len(image_paths) == len(audio_paths) == len(durations)
+async def _synthesize_once(text: str, out_path: str, voice: str):
+    communicate = edge_tts.Communicate(text, voice=voice, rate="+0%")
+    await communicate.save(out_path)
 
-    fade_dur = min(0.6, min(durations) / 4)
 
-    filter_parts = []
-    inputs = []
-    for i, img in enumerate(image_paths):
-        inputs += ["-loop", "1", "-t", str(durations[i] + fade_dur), "-i", img]
-        zoompan = (
-            f"[{i}:v]scale={width * 2}:{height * 2},"
-            f"zoompan=z='min(zoom+0.0015,1.2)':d={int((durations[i] + fade_dur) * 25)}"
-            f":s={width}x{height}:fps=25,setsar=1[v{i}]"
-        )
-        filter_parts.append(zoompan)
+def _synthesize_with_retry(text: str, out_path: str, voice: str, attempts: int = 5):
+    last_err = None
+    for attempt in range(attempts):
+        try:
+            asyncio.run(_synthesize_once(text, out_path, voice))
+            return
+        except Exception as e:
+            last_err = e
+            wait = 5 * (attempt + 1)
+            print(f"TTS attempt {attempt + 1} failed ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+    raise last_err
 
-    # Video crossfade chain
-    chain = "v0"
-    offset = durations[0]
-    for i in range(1, len(image_paths)):
-        out_label = f"vx{i}"
-        filter_parts.append(
-            f"[{chain}][v{i}]xfade=transition=fade:duration={fade_dur}:"
-            f"offset={offset:.2f}[{out_label}]"
-        )
-        chain = out_label
-        offset += durations[i]
 
-    video_filter_complex = ";".join(filter_parts)
+def _get_duration(path: str) -> float:
+    out = subprocess.check_output([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "csv=p=0", path,
+    ])
+    return float(out.strip())
 
-    # Concatenate all the audio clips into a single track, in order.
-    concat_list_path = os.path.join(os.path.dirname(out_path) or ".", "_audio_concat.txt")
-    with open(concat_list_path, "w") as f:
-        for a in audio_paths:
-            f.write(f"file '{os.path.abspath(a)}'\n")
-    concat_audio_path = os.path.join(os.path.dirname(out_path) or ".", "_full_audio.mp3")
-    subprocess.run([
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0",
-        "-i", concat_list_path, "-c", "copy", concat_audio_path,
-    ], check=True)
 
-    audio_input_index = len(image_paths)
-    cmd = [
-        "ffmpeg", "-y", *inputs,
-        "-i", concat_audio_path,
-        "-filter_complex", video_filter_complex,
-        "-map", f"[{chain}]", "-map", f"{audio_input_index}:a",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-shortest",
-        out_path,
-    ]
-    subprocess.run(cmd, check=True)
+def generate_voiceover(text: str, out_path: str = "voiceover.mp3",
+                        voice: str = DEFAULT_VOICE):
+    """Original single-file helper - kept for backward compatibility."""
+    _synthesize_with_retry(text, out_path, voice)
     return out_path
+
+
+def generate_segment_voiceovers(segments: list[dict], out_dir: str,
+                                 voice: str = DEFAULT_VOICE):
+    """
+    Generates one mp3 per segment. Returns a list of
+    {"audio_path": str, "duration": float} in the same order as segments.
+    """
+    import os
+    os.makedirs(out_dir, exist_ok=True)
+    results = []
+    for i, seg in enumerate(segments):
+        out_path = os.path.join(out_dir, f"line_{i:02d}.mp3")
+        _synthesize_with_retry(seg["narration"], out_path, voice)
+        duration = _get_duration(out_path)
+        results.append({"audio_path": out_path, "duration": duration})
+    return results
+
+
+if __name__ == "__main__":
+    generate_voiceover("Once upon a time, Nova and her friends went on an adventure.")
+    print("Saved voiceover.mp3")
