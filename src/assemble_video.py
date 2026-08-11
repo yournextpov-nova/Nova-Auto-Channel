@@ -1,46 +1,34 @@
 """
-Assembles the final video from scene images + the voiceover mp3 using
-ffmpeg (must be installed - it's pre-installed on GitHub Actions'
-ubuntu-latest runners via `apt-get install ffmpeg`).
-
-Each image gets an equal slice of the audio's total duration, with a
-slow "Ken Burns" zoom/pan and a cross-fade into the next image.
+Assembles the final video from per-segment images + per-segment audio
+clips using ffmpeg. Each image is shown for EXACTLY the duration of
+its own narration line, so the visual always matches what's being
+said - no more generic even-split slideshow timing.
 """
 import subprocess
-import json
 import os
 
 
-def get_audio_duration(audio_path: str) -> float:
-    out = subprocess.check_output([
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
-        "-of", "json", audio_path,
-    ])
-    return float(json.loads(out)["format"]["duration"])
-
-
-def assemble_video(image_paths: list[str], audio_path: str, out_path: str,
+def assemble_video(image_paths: list[str], audio_paths: list[str],
+                    durations: list[float], out_path: str,
                     width: int = 1920, height: int = 1080):
-    duration = get_audio_duration(audio_path)
-    per_image = duration / len(image_paths)
-    fade_dur = min(1.0, per_image / 4)
+    assert len(image_paths) == len(audio_paths) == len(durations)
 
-    # Build one input per image, each shown for `per_image` seconds with
-    # a slow zoom (Ken Burns), then concatenated with crossfades.
+    fade_dur = min(0.6, min(durations) / 4)
+
     filter_parts = []
     inputs = []
     for i, img in enumerate(image_paths):
-        inputs += ["-loop", "1", "-t", str(per_image + fade_dur), "-i", img]
+        inputs += ["-loop", "1", "-t", str(durations[i] + fade_dur), "-i", img]
         zoompan = (
             f"[{i}:v]scale={width * 2}:{height * 2},"
-            f"zoompan=z='min(zoom+0.0015,1.2)':d={int((per_image + fade_dur) * 25)}"
+            f"zoompan=z='min(zoom+0.0015,1.2)':d={int((durations[i] + fade_dur) * 25)}"
             f":s={width}x{height}:fps=25,setsar=1[v{i}]"
         )
         filter_parts.append(zoompan)
 
-    # Chain crossfades between consecutive clips
+    # Video crossfade chain
     chain = "v0"
-    offset = per_image
+    offset = durations[0]
     for i in range(1, len(image_paths)):
         out_label = f"vx{i}"
         filter_parts.append(
@@ -48,15 +36,27 @@ def assemble_video(image_paths: list[str], audio_path: str, out_path: str,
             f"offset={offset:.2f}[{out_label}]"
         )
         chain = out_label
-        offset += per_image
+        offset += durations[i]
 
-    filter_complex = ";".join(filter_parts)
+    video_filter_complex = ";".join(filter_parts)
 
+    # Concatenate all the audio clips into a single track, in order.
+    concat_list_path = os.path.join(os.path.dirname(out_path) or ".", "_audio_concat.txt")
+    with open(concat_list_path, "w") as f:
+        for a in audio_paths:
+            f.write(f"file '{os.path.abspath(a)}'\n")
+    concat_audio_path = os.path.join(os.path.dirname(out_path) or ".", "_full_audio.mp3")
+    subprocess.run([
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+        "-i", concat_list_path, "-c", "copy", concat_audio_path,
+    ], check=True)
+
+    audio_input_index = len(image_paths)
     cmd = [
         "ffmpeg", "-y", *inputs,
-        "-i", audio_path,
-        "-filter_complex", filter_complex,
-        "-map", f"[{chain}]", "-map", f"{len(image_paths)}:a",
+        "-i", concat_audio_path,
+        "-filter_complex", video_filter_complex,
+        "-map", f"[{chain}]", "-map", f"{audio_input_index}:a",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-shortest",
         out_path,
