@@ -34,10 +34,14 @@ API_URL = (
 def build_prompt(scene_description: str, config: dict) -> str:
     chars = config["characters"]
     style = config["art_style"]
+    # Scene action goes FIRST so it never gets cut off by truncation -
+    # this is the most important part of the prompt.
     prompt = (
-        f"{style}. Characters in scene: Nova ({chars['nova']}), "
-        f"the cat ({chars['cat']}), the panda ({chars['panda']}). "
-        f"Scene: {scene_description}"
+        f"{scene_description}. "
+        f"{style}. "
+        f"Nova: {chars['nova'][:180]} "
+        f"Cat: {chars['cat'][:120]} "
+        f"Panda: {chars['panda'][:120]}"
     )
     return prompt[:900]
 
