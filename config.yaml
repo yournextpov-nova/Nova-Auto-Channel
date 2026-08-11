@@ -39,6 +39,8 @@ video:
   - Nova's Starry Night
   - Nova's Starry Garden
   - Starlight Blooms
+  recent_titles:
+  - Nova's Mysterious Humming Noise Bedtime Story
 upload:
   privacy_status: public
   category_id: '1'
