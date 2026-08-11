@@ -1,7 +1,10 @@
 """
-Generates today's story script + a matching list of scene image prompts,
-using Groq's free-tier API (OpenAI-compatible chat completions).
+Generates today's story as a list of synced segments - each segment
+pairs one line of narration with the matching image description, so
+the visual on screen matches exactly what's being spoken at that
+moment.
 
+Uses Groq's free-tier API (OpenAI-compatible chat completions).
 Get a free key at https://console.groq.com/keys
 Set it as the GROQ_API_KEY environment variable / GitHub secret.
 """
@@ -53,7 +56,7 @@ def _call_groq(prompt: str) -> str:
 
 
 def generate_story(config: dict, topic: str | None = None) -> dict:
-    """Returns {"title", "description", "narration", "scenes", "tags"}"""
+    """Returns {"title", "description", "tags", "segments": [{"narration","visual"}]}"""
     chars = config["characters"]
     minutes = config["video"]["target_length_minutes"]
     audience = config["video"]["audience"]
@@ -87,9 +90,18 @@ Main characters (always stay true to these descriptions):
 - The panda: {chars['panda']}
 
 Audience: {audience}
-Target spoken length: about {minutes} minutes (roughly {minutes * 130} words).
+Target spoken length: about {minutes} minutes (roughly {minutes * 130} words
+total across all segments).
 {topic_line}
 {avoid_line}
+Write the story as a sequence of 10 to 16 SEGMENTS. Each segment is one
+beat of the story: a sentence or two of narration, paired with a
+description of exactly what should be drawn on screen while THAT
+narration is spoken. The visual must match the narration action
+precisely (e.g. if the narration says "Nova ran from the tornado", the
+visual for that same segment must show Nova running from a tornado -
+not an earlier or later moment).
+
 Return ONLY valid JSON, no markdown fences, no commentary, in this exact
 shape:
 {{
@@ -101,13 +113,15 @@ shape:
                   "the story and characters, written for SEO with natural "
                   "keyword use, followed on a new line by 8-12 relevant "
                   "hashtags starting with #",
-  "narration": "the full story, written to be read aloud by a narrator, "
-               "broken into natural paragraphs",
-  "scenes": ["a visual description of scene 1", "scene 2", "... 10 to 14 scenes "
-             "total, each describing one key visual moment of the story in "
-             "1-2 sentences, in chronological order"],
   "tags": ["15 to 20 relevant YouTube SEO tags/keywords as short strings, "
-           "no # symbols, mix of broad and specific terms"]
+           "no # symbols, mix of broad and specific terms"],
+  "segments": [
+    {{
+      "narration": "one or two sentences of the story, spoken aloud here",
+      "visual": "exactly what the image should show during this narration - "
+                "specific action, pose, and setting matching this exact line"
+    }}
+  ]
 }}
 """
     raw = _call_groq(prompt)
