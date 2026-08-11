@@ -8,11 +8,22 @@ Set it as the GROQ_API_KEY environment variable / GitHub secret.
 import os
 import json
 import time
+import random
 import requests
 
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+THEME_SEEDS = [
+    "a rainy day", "a birthday surprise", "a lost object", "a new friend",
+    "a silly misunderstanding", "a small act of courage", "a game gone wrong",
+    "a mysterious noise", "helping a neighbor", "a treasure hunt",
+    "learning to share", "overcoming a fear", "a picnic", "a snow day",
+    "a broken toy", "a garden project", "a talent show", "a camping trip",
+    "a market day", "a costume party", "a science experiment",
+    "a music lesson", "a boat trip", "a mountain hike", "a cooking mishap",
+]
 
 
 def _call_groq(prompt: str) -> str:
@@ -24,7 +35,7 @@ def _call_groq(prompt: str) -> str:
             json={
                 "model": GROQ_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.9,
+                "temperature": 1.0,
             },
             timeout=120,
         )
@@ -41,17 +52,30 @@ def _call_groq(prompt: str) -> str:
 
 
 def generate_story(config: dict, topic: str | None = None) -> dict:
-    """Returns {"title": str, "narration": str, "scenes": [str, ...]}"""
+    """Returns {"title", "description", "narration", "scenes", "tags"}"""
     chars = config["characters"]
     minutes = config["video"]["target_length_minutes"]
     audience = config["video"]["audience"]
+    recent_titles = config["video"].get("recent_titles", [])
 
-    topic_line = (
-        f'Base today\'s story on this idea: "{topic}".'
-        if topic
-        else "Invent a brand new, original story idea today - do not repeat "
-             "common cliches, make it fresh and fun."
-    )
+    theme_seed = random.choice(THEME_SEEDS)
+
+    if topic:
+        topic_line = f'Base today\'s story on this idea: "{topic}".'
+    else:
+        topic_line = (
+            f"Invent a brand new, original story idea today loosely inspired by "
+            f"the theme '{theme_seed}' - do not repeat common cliches, make it "
+            f"fresh and fun."
+        )
+
+    avoid_line = ""
+    if recent_titles:
+        recent_list = "; ".join(recent_titles[-10:])
+        avoid_line = (
+            f"\nIMPORTANT: Do NOT repeat these recently used story titles or "
+            f"their plots - write something genuinely different: {recent_list}\n"
+        )
 
     prompt = f"""
 You write scripts for a kids' animated YouTube channel.
@@ -64,17 +88,25 @@ Main characters (always stay true to these descriptions):
 Audience: {audience}
 Target spoken length: about {minutes} minutes (roughly {minutes * 130} words).
 {topic_line}
-
+{avoid_line}
 Return ONLY valid JSON, no markdown fences, no commentary, in this exact
 shape:
 {{
-  "title": "a short catchy YouTube title, under 70 characters",
-  "description": "a 2-3 sentence YouTube video description",
+  "title": "an SEO-friendly YouTube title, 60-100 characters, keyword-rich "
+            "(include words like 'Kids Story', 'Bedtime Story', 'Animated "
+            "Story', 'Nova' where natural), specific and curiosity-driving, "
+            "not generic",
+  "description": "a detailed 4-6 sentence YouTube description summarizing "
+                  "the story and characters, written for SEO with natural "
+                  "keyword use, followed on a new line by 8-12 relevant "
+                  "hashtags starting with #",
   "narration": "the full story, written to be read aloud by a narrator, "
                "broken into natural paragraphs",
   "scenes": ["a visual description of scene 1", "scene 2", "... 5 to 6 scenes "
              "total, each describing one key visual moment of the story in "
-             "1-2 sentences, in chronological order"]
+             "1-2 sentences, in chronological order"],
+  "tags": ["10 to 15 relevant YouTube SEO tags/keywords as short strings, "
+           "no # symbols, mix of broad and specific terms"]
 }}
 """
     raw = _call_groq(prompt)
