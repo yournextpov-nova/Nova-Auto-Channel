@@ -36,6 +36,7 @@ def _call_groq(prompt: str) -> str:
                 "model": GROQ_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 1.0,
+                "max_tokens": 4096,
             },
             timeout=120,
         )
