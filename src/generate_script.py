@@ -94,13 +94,15 @@ Target spoken length: about {minutes} minutes (roughly {minutes * 130} words
 total across all segments).
 {topic_line}
 {avoid_line}
-Write the story as a sequence of 10 to 16 SEGMENTS. Each segment is one
-beat of the story: a sentence or two of narration, paired with a
-description of exactly what should be drawn on screen while THAT
-narration is spoken. The visual must match the narration action
-precisely (e.g. if the narration says "Nova ran from the tornado", the
-visual for that same segment must show Nova running from a tornado -
-not an earlier or later moment).
+Write the story as a sequence of 20 to 30 SEGMENTS. Each segment is one
+short beat of the story - ONE sentence of narration only, paired with a
+description of exactly what should be drawn on screen while THAT single
+sentence is spoken. Keep segments short and granular so the image on
+screen always matches the specific action being narrated at that exact
+moment. The visual must match the narration action precisely (e.g. if
+the narration says "Nova ran from the tornado", the visual for that
+same segment must show Nova running from a tornado - not an earlier or
+later moment).
 
 Return ONLY valid JSON, no markdown fences, no commentary, in this exact
 shape:
