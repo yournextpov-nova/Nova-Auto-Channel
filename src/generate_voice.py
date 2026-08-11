@@ -14,14 +14,29 @@ below to try others - list them with: edge-tts --list-voices
 """
 import asyncio
 import subprocess
+import time
 import edge_tts
 
 DEFAULT_VOICE = "en-US-DavisNeural"  # deep, mature-sounding male voice
 
 
-async def _synthesize(text: str, out_path: str, voice: str):
+async def _synthesize_once(text: str, out_path: str, voice: str):
     communicate = edge_tts.Communicate(text, voice=voice, rate="+0%")
     await communicate.save(out_path)
+
+
+def _synthesize_with_retry(text: str, out_path: str, voice: str, attempts: int = 5):
+    last_err = None
+    for attempt in range(attempts):
+        try:
+            asyncio.run(_synthesize_once(text, out_path, voice))
+            return
+        except Exception as e:
+            last_err = e
+            wait = 5 * (attempt + 1)
+            print(f"TTS attempt {attempt + 1} failed ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+    raise last_err
 
 
 def _get_duration(path: str) -> float:
@@ -35,7 +50,7 @@ def _get_duration(path: str) -> float:
 def generate_voiceover(text: str, out_path: str = "voiceover.mp3",
                         voice: str = DEFAULT_VOICE):
     """Original single-file helper - kept for backward compatibility."""
-    asyncio.run(_synthesize(text, out_path, voice))
+    _synthesize_with_retry(text, out_path, voice)
     return out_path
 
 
@@ -50,7 +65,7 @@ def generate_segment_voiceovers(segments: list[dict], out_dir: str,
     results = []
     for i, seg in enumerate(segments):
         out_path = os.path.join(out_dir, f"line_{i:02d}.mp3")
-        asyncio.run(_synthesize(seg["narration"], out_path, voice))
+        _synthesize_with_retry(seg["narration"], out_path, voice)
         duration = _get_duration(out_path)
         results.append({"audio_path": out_path, "duration": duration})
     return results
