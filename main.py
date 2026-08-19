@@ -1,6 +1,6 @@
 """
 The ONE script that runs the whole pipeline: idea -> synced script ->
-per-line voice -> matching images -> video -> upload.
+per-line voice -> matching ANIMATED clips -> video -> upload.
 
 Usage:
     python main.py                     # AI invents today's story
@@ -10,10 +10,9 @@ import argparse
 import os
 import shutil
 import yaml
-
 from src.generate_script import generate_story
 from src.generate_voice import generate_segment_voiceovers
-from src.generate_images import generate_all_scene_images
+from src.generate_clips import generate_all_scene_clips
 from src.assemble_video import assemble_video
 from src.upload_youtube import upload_video
 
@@ -32,6 +31,7 @@ def main(topic: str | None):
         topic = config["video"]["topic_ideas"].pop(0)
         with open("config.yaml", "w") as f:
             yaml.safe_dump(config, f, sort_keys=False)
+
     story = generate_story(config, topic=topic)
     print("Title:", story["title"])
     segments = story["segments"]
@@ -49,12 +49,14 @@ def main(topic: str | None):
     audio_paths = [r["audio_path"] for r in voice_results]
     durations = [r["duration"] for r in voice_results]
 
-    print("3/5 Generating matching scene images (this can take a while)...")
+    print("3/5 Generating animated scene clips (this takes a while - Agnes is async)...")
     visuals = [seg["visual"] for seg in segments]
-    image_paths = generate_all_scene_images(visuals, config, out_dir=os.path.join(work_dir, "scenes"))
+    clip_paths = generate_all_scene_clips(
+        visuals, durations, config, out_dir=os.path.join(work_dir, "scenes")
+    )
 
     print("4/5 Assembling synced video...")
-    video_path = assemble_video(image_paths, audio_paths, durations, os.path.join(work_dir, "final.mp4"))
+    video_path = assemble_video(clip_paths, audio_paths, durations, os.path.join(work_dir, "final.mp4"))
 
     print("5/5 Uploading to YouTube...")
     ai_tags = story.get("tags") or []
@@ -67,7 +69,6 @@ def main(topic: str | None):
         category_id=config["upload"]["category_id"],
         privacy_status=config["upload"]["privacy_status"],
     )
-
     print("Done!")
 
 
