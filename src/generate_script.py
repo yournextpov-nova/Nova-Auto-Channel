@@ -16,7 +16,7 @@ import requests
 
 GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 THEME_SEEDS = [
     "a rainy day", "a birthday surprise", "a lost object", "a new friend",
