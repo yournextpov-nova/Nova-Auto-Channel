@@ -30,6 +30,7 @@ import requests
 CF_ACCOUNT_ID = os.environ["CF_ACCOUNT_ID"]
 CF_API_TOKEN = os.environ["CF_API_TOKEN"]
 AGNES_API_KEY = os.environ["AGNES_API_KEY"]
+IMGBB_API_KEY = os.environ["IMGBB_API_KEY"]
 
 FLUX_MODEL = "@cf/black-forest-labs/flux-1-schnell"
 FLUX_URL = (
@@ -99,19 +100,20 @@ def generate_frame_image(scene_description: str, config: dict, out_path: str,
 
 def upload_to_public_url(local_path: str) -> str:
     """Agnes image-to-video needs a public image URL, not a raw file upload.
-    catbox.moe is free and needs no account/key."""
+    Uses imgbb (free, key required) - catbox.moe was tried first but blocks
+    GitHub Actions' datacenter IP range with a 412, so this replaced it."""
     with open(local_path, "rb") as f:
         r = requests.post(
-            "https://catbox.moe/user/api.php",
-            data={"reqtype": "fileupload"},
-            files={"fileToUpload": f},
+            "https://api.imgbb.com/1/upload",
+            params={"key": IMGBB_API_KEY},
+            files={"image": f},
             timeout=60,
         )
     r.raise_for_status()
-    url = r.text.strip()
-    if not url.startswith("http"):
-        raise RuntimeError(f"catbox upload failed: {url}")
-    return url
+    data = r.json()
+    if not data.get("success"):
+        raise RuntimeError(f"imgbb upload failed: {data}")
+    return data["data"]["url"]
 
 
 def _frames_for(seconds: float) -> int:
