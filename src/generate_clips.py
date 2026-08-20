@@ -61,12 +61,13 @@ def build_prompt(scene_description: str, config: dict) -> str:
 
 def generate_frame_image(scene_description: str, config: dict, out_path: str,
                           width: int = 1344, height: int = 768, seed: int | None = None):
-    """Unchanged from generate_images.py - produces the starting frame."""
+    """Produces the starting frame. NOTE: flux-1-schnell's schema does not
+    accept a 'seed' field (unlike some other Workers AI image models), so
+    it is intentionally not sent even though it's still accepted as an
+    argument here for compatibility with the rest of the code."""
     prompt = build_prompt(scene_description, config)
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
     payload = {"prompt": prompt}
-    if seed is not None:
-        payload["seed"] = seed
 
     last_status, last_text = None, ""
     for attempt in range(6):
