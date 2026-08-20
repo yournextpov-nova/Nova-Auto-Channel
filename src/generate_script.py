@@ -39,12 +39,11 @@ def _call_groq(prompt: str) -> str:
                 "model": GROQ_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 1.0,
-                # openai/gpt-oss-120b is a reasoning model - it spends part of
-                # this token budget on internal reasoning before writing the
-                # actual answer, so this needs real headroom or content comes
-                # back empty. reasoning_effort=low keeps most of the budget
-                # for the actual story JSON.
-                "max_tokens": 8000,
+                # openai/gpt-oss-120b's free tier caps at 8000 tokens PER
+                # MINUTE total (prompt + completion combined) - not just
+                # completion. Leaving headroom below that for the prompt
+                # itself (character bios + instructions, ~700-900 tokens).
+                "max_tokens": 6500,
                 "reasoning_effort": "low",
             },
             timeout=120,
