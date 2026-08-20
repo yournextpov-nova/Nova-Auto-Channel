@@ -141,6 +141,21 @@ def _submit_agnes_video(prompt: str, image_url: str, num_frames: int) -> str:
     return r.json()["id"]
 
 
+def _extract_video_url(data: dict) -> str | None:
+    """Agnes V2.0's docs say the URL lives at metadata.url, but other
+    Agnes model versions/docs have shown video_url or url at the top
+    level - check all of them so this doesn't break again if the API
+    is inconsistent."""
+    if data.get("video_url"):
+        return data["video_url"]
+    if data.get("url"):
+        return data["url"]
+    metadata = data.get("metadata") or {}
+    if metadata.get("url"):
+        return metadata["url"]
+    return None
+
+
 def _poll_agnes_video(task_id: str, timeout: int = 600) -> str:
     headers = {"Authorization": f"Bearer {AGNES_API_KEY}"}
     start = time.time()
@@ -150,7 +165,10 @@ def _poll_agnes_video(task_id: str, timeout: int = 600) -> str:
         data = r.json()
         status = data.get("status")
         if status == "completed":
-            return data["video_url"]
+            video_url = _extract_video_url(data)
+            if not video_url:
+                raise RuntimeError(f"Agnes task {task_id} completed but no video URL found in response: {data}")
+            return video_url
         if status == "failed":
             raise RuntimeError(f"Agnes video task {task_id} failed: {data}")
         time.sleep(10)
