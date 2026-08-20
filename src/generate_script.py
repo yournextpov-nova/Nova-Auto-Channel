@@ -39,7 +39,13 @@ def _call_groq(prompt: str) -> str:
                 "model": GROQ_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 1.0,
-                "max_tokens": 4096,
+                # openai/gpt-oss-120b is a reasoning model - it spends part of
+                # this token budget on internal reasoning before writing the
+                # actual answer, so this needs real headroom or content comes
+                # back empty. reasoning_effort=low keeps most of the budget
+                # for the actual story JSON.
+                "max_tokens": 8000,
+                "reasoning_effort": "low",
             },
             timeout=120,
         )
@@ -51,8 +57,17 @@ def _call_groq(prompt: str) -> str:
             continue
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
-    last_error.raise_for_status()
+        content = data["choices"][0]["message"]["content"]
+        if not content or not content.strip():
+            # Reasoning likely ate the whole budget - retry is unlikely to
+            # help unless we back off max_tokens usage elsewhere, but a
+            # retry occasionally succeeds due to response variance.
+            print(f"Attempt {attempt + 1}: got empty content, retrying...")
+            last_error = resp
+            time.sleep(5)
+            continue
+        return content
+    raise RuntimeError(f"Groq returned empty content after retries. Last response: {last_error.text[:500] if last_error is not None else 'none'}")
 
 
 def generate_story(config: dict, topic: str | None = None) -> dict:
