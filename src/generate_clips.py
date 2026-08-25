@@ -136,20 +136,30 @@ def generate_frame_image(scene_description: str, config: dict, out_path: str,
 
 def upload_to_public_url(local_path: str) -> str:
     """Agnes image-to-video needs a public image URL, not a raw file upload.
-    Uses imgbb (free, key required) - catbox.moe was tried first but blocks
-    GitHub Actions' datacenter IP range with a 412, so this replaced it."""
-    with open(local_path, "rb") as f:
-        r = requests.post(
-            "https://api.imgbb.com/1/upload",
-            params={"key": IMGBB_API_KEY},
-            files={"image": f},
-            timeout=60,
-        )
-    r.raise_for_status()
-    data = r.json()
-    if not data.get("success"):
-        raise RuntimeError(f"imgbb upload failed: {data}")
-    return data["data"]["url"]
+    Uses imgbb (free, key required). Retries on transient network errors -
+    previously this had no retry at all, so a single flaky request could
+    kill an entire multi-hour run."""
+    last_err = None
+    for attempt in range(4):
+        try:
+            with open(local_path, "rb") as f:
+                r = requests.post(
+                    "https://api.imgbb.com/1/upload",
+                    params={"key": IMGBB_API_KEY},
+                    files={"image": f},
+                    timeout=60,
+                )
+            r.raise_for_status()
+            data = r.json()
+            if not data.get("success"):
+                raise RuntimeError(f"imgbb upload failed: {data}")
+            return data["data"]["url"]
+        except (requests.exceptions.RequestException, RuntimeError) as e:
+            last_err = e
+            wait = 15 * (attempt + 1)
+            print(f"imgbb upload attempt {attempt + 1} failed ({e}), retrying in {wait}s...")
+            time.sleep(wait)
+    raise RuntimeError(f"imgbb upload failed after retries: {last_err}")
 
 
 def _frames_for(seconds: float) -> int:
@@ -192,13 +202,23 @@ def _extract_video_url(data: dict) -> str | None:
     return None
 
 
-def _poll_agnes_video(task_id: str, timeout: int = 600) -> str:
+def _poll_agnes_video(task_id: str, timeout: int = 900) -> str:
+    """Polls until the task completes. Tolerates transient network blips
+    (a single dropped read shouldn't kill a run that's been going for an
+    hour) - only gives up once the overall timeout is exceeded. Timeout
+    raised from 600s to 900s since Agnes's free tier can queue up during
+    busy periods and legitimately take longer than 10 minutes."""
     headers = {"Authorization": f"Bearer {AGNES_API_KEY}"}
     start = time.time()
     while time.time() - start < timeout:
-        r = requests.get(f"{AGNES_BASE}/videos/{task_id}", headers=headers, timeout=30)
-        r.raise_for_status()
-        data = r.json()
+        try:
+            r = requests.get(f"{AGNES_BASE}/videos/{task_id}", headers=headers, timeout=30)
+            r.raise_for_status()
+            data = r.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Poll request hiccup for {task_id} ({e}), retrying...")
+            time.sleep(10)
+            continue
         status = data.get("status")
         if status == "completed":
             video_url = _extract_video_url(data)
@@ -224,7 +244,7 @@ def _animate_one_clip(prompt: str, image_url: str, seconds: float, out_path: str
             with open(out_path, "wb") as f:
                 f.write(r.content)
             return num_frames / FRAME_RATE
-        except requests.exceptions.HTTPError as e:
+        except requests.exceptions.RequestException as e:
             last_err = e
             wait = 20 * (attempt + 1)
             print(f"Agnes attempt {attempt + 1} failed: {e}. Waiting {wait}s...")
@@ -302,6 +322,11 @@ def generate_all_scene_clips(scenes: list[str], durations: list[float], config: 
     clip_paths = []
     base_seed = int(time.time()) % 100000
     for i, (scene, duration) in enumerate(zip(scenes, durations)):
+        final_clip = os.path.join(out_dir, f"scene_{i:02d}.mp4")
+        if os.path.exists(final_clip):
+            print(f"  scene {i + 1}/{len(scenes)} already done, skipping...")
+            clip_paths.append(final_clip)
+            continue
         if i > 0:
             time.sleep(3)  # be polite to Agnes's free 20 RPM limit
         print(f"  scene {i + 1}/{len(scenes)} ({duration:.1f}s)...")
