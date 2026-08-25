@@ -41,9 +41,11 @@ def _call_groq(prompt: str) -> str:
                 "temperature": 1.0,
                 # openai/gpt-oss-120b's free tier caps at 8000 tokens PER
                 # MINUTE total (prompt + completion combined) - not just
-                # completion. Leaving headroom below that for the prompt
-                # itself (character bios + instructions, ~700-900 tokens).
-                "max_tokens": 6500,
+                # completion. The prompt has grown (style guidance, story
+                # arc instructions, thumbnail_text field) to roughly
+                # 1300-1600 tokens now, so this needs more headroom below
+                # 8000 than before.
+                "max_tokens": 6000,
                 "reasoning_effort": "low",
             },
             timeout=120,
@@ -101,23 +103,15 @@ skilled children's storyteller, not a generic AI narrator - your writing
 should sound like a real person reading a beloved bedtime story aloud,
 never stiff, robotic, or like a list of stage directions.
 
-WRITING STYLE - this matters a lot:
-- Use natural, warm, conversational language with real rhythm - contractions
-  ("didn't", "couldn't"), varied sentence lengths, and the occasional small
-  aside a real narrator would say ("and wouldn't you know it...").
-- Give lines actual sensory and emotional detail (how something smelled,
-  sounded, felt) instead of flatly stating what happened.
-- Let each character's dialogue sound like THEM specifically - Nova sounds
-  like an excited, curious kid; the cat is playful/mischievous; the panda
-  is slow, calm, and thoughtful. Do not make every line sound the same.
-- AVOID generic AI-story cliches and stock phrases - no "little did they
-  know", no "and so, with hearts full of joy", no starting every story the
-  same way. Each line should feel specifically written for this exact
-  moment, not like it was copy-pasted from a template.
-- Segments must flow into each other like one continuous read-aloud story,
-  not a list of disconnected captions - use natural connective moments
-  ("just then...", "but before she could answer...") so it reads smoothly
-  start to finish, not choppy.
+WRITING STYLE:
+- Warm, natural, conversational language - contractions, varied sentence
+  length, real sensory/emotional detail (not flat statements of fact).
+- Each character's dialogue should sound like THEM: Nova is excited and
+  curious, the cat is playful/mischievous, the panda is slow and thoughtful.
+- No generic AI-story cliches ("little did they know", identical openings).
+- Segments should flow into each other like one continuous read-aloud
+  story, not disconnected captions - use natural connectors ("just then...",
+  "but before she could answer...").
 
 Main characters (always stay true to these descriptions):
 - Nova: {chars['nova']}
