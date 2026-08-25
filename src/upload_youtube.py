@@ -7,6 +7,7 @@ import os
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 
 
 def get_youtube_client():
@@ -23,7 +24,7 @@ def get_youtube_client():
 
 def upload_video(video_path: str, title: str, description: str,
                   tags: list[str], category_id: str = "1",
-                  privacy_status: str = "public"):
+                  privacy_status: str = "public", thumbnail_path: str | None = None):
     youtube = get_youtube_client()
     body = {
         "snippet": {
@@ -40,12 +41,25 @@ def upload_video(video_path: str, title: str, description: str,
     }
     media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-
     response = None
     while response is None:
         status, response = request.next_chunk()
         if status:
             print(f"Uploaded {int(status.progress() * 100)}%")
+    video_id = response["id"]
+    print("Upload complete. Video ID:", video_id)
 
-    print("Upload complete. Video ID:", response["id"])
-    return response["id"]
+    if thumbnail_path and os.path.exists(thumbnail_path):
+        try:
+            youtube.thumbnails().set(
+                videoId=video_id,
+                media_body=MediaFileUpload(thumbnail_path),
+            ).execute()
+            print("Custom thumbnail set.")
+        except HttpError as e:
+            # Custom thumbnails require a phone-verified YouTube channel.
+            # Don't fail the whole run over this - the video itself is
+            # already uploaded successfully at this point.
+            print(f"Could not set custom thumbnail (video still uploaded fine): {e}")
+
+    return video_id
