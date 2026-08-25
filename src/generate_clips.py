@@ -48,16 +48,52 @@ MAX_CLIP_SECONDS = FRAME_OPTIONS[-1] / FRAME_RATE  # ~18.4s
 
 
 def build_prompt(scene_description: str, config: dict) -> str:
+    """Used for the FLUX starting image - needs full character detail
+    since there's no prior frame to anchor appearance yet.
+
+    Only includes a character's description if that character is
+    actually named in this scene. Previously all three character bios
+    were appended to every prompt regardless of relevance - if a scene
+    already mentioned "the cat" and then the bible text described the
+    cat again right after, that character effectively got named twice
+    in one prompt, which is a known trigger for diffusion models to
+    render two of that subject (mirrored/symmetric duplicates)."""
     chars = config["characters"]
     style = config["art_style"]
+    lower_scene = scene_description.lower()
+
+    char_lines = []
+    if "nova" in lower_scene:
+        char_lines.append(f"Nova: {chars['nova'][:180]}")
+    if "cat" in lower_scene:
+        char_lines.append(f"Cat: {chars['cat'][:120]}")
+    if "panda" in lower_scene or "momo" in lower_scene:
+        char_lines.append(f"Panda: {chars['panda'][:120]}")
+    char_block = " ".join(char_lines)
+
     prompt = (
         f"{scene_description}. "
         f"{style}. "
-        f"Nova: {chars['nova'][:180]} "
-        f"Cat: {chars['cat'][:120]} "
-        f"Panda: {chars['panda'][:120]}"
+        f"{char_block} "
+        f"Exactly one of each character shown - solo individuals, "
+        f"no duplicates, no twins, no mirrored copies."
     )
     return prompt[:900]
+
+
+def build_motion_prompt(scene_description: str) -> str:
+    """Used for Agnes image-to-video. Deliberately does NOT re-describe
+    character appearance - the starting image already shows exactly who
+    is in the scene, and re-describing them in detail here has caused
+    Agnes to render duplicate characters (e.g. two cats), since a strong
+    text description reads as an instruction to add that character
+    rather than just animate the one already in frame."""
+    return (
+        f"Animate this exact scene with smooth, natural motion: {scene_description}. "
+        f"Keep every character's appearance and count EXACTLY as shown in the "
+        f"starting image - do not add, duplicate, mirror, or remove any "
+        f"characters. If the image shows one cat, keep exactly one cat."
+    )[:900]
 
 
 def generate_frame_image(scene_description: str, config: dict, out_path: str,
@@ -217,7 +253,8 @@ def generate_clip_for_scene(scene_description: str, config: dict, duration: floa
                              out_dir: str, index: int, seed: int) -> str:
     """One segment's animated clip, chaining multiple Agnes calls if needed."""
     os.makedirs(out_dir, exist_ok=True)
-    prompt = build_prompt(scene_description, config)
+    image_prompt = build_prompt(scene_description, config)
+    motion_prompt = build_motion_prompt(scene_description)
 
     frame_path = os.path.join(out_dir, f"scene_{index:02d}_frame.png")
     generate_frame_image(scene_description, config, frame_path, seed=seed)
@@ -229,7 +266,7 @@ def generate_clip_for_scene(scene_description: str, config: dict, duration: floa
     while remaining > 0:
         this_len = min(remaining, MAX_CLIP_SECONDS)
         part_out = os.path.join(out_dir, f"scene_{index:02d}_part{part}.mp4")
-        actual_len = _animate_one_clip(prompt, image_url, this_len, part_out)
+        actual_len = _animate_one_clip(motion_prompt, image_url, this_len, part_out)
         part_paths.append(part_out)
         remaining -= actual_len
         part += 1
