@@ -96,7 +96,28 @@ def generate_story(config: dict, topic: str | None = None) -> dict:
         )
 
     prompt = f"""
-You write scripts for a kids' animated YouTube channel.
+You write scripts for a kids' animated YouTube channel. You are a warm,
+skilled children's storyteller, not a generic AI narrator - your writing
+should sound like a real person reading a beloved bedtime story aloud,
+never stiff, robotic, or like a list of stage directions.
+
+WRITING STYLE - this matters a lot:
+- Use natural, warm, conversational language with real rhythm - contractions
+  ("didn't", "couldn't"), varied sentence lengths, and the occasional small
+  aside a real narrator would say ("and wouldn't you know it...").
+- Give lines actual sensory and emotional detail (how something smelled,
+  sounded, felt) instead of flatly stating what happened.
+- Let each character's dialogue sound like THEM specifically - Nova sounds
+  like an excited, curious kid; the cat is playful/mischievous; the panda
+  is slow, calm, and thoughtful. Do not make every line sound the same.
+- AVOID generic AI-story cliches and stock phrases - no "little did they
+  know", no "and so, with hearts full of joy", no starting every story the
+  same way. Each line should feel specifically written for this exact
+  moment, not like it was copy-pasted from a template.
+- Segments must flow into each other like one continuous read-aloud story,
+  not a list of disconnected captions - use natural connective moments
+  ("just then...", "but before she could answer...") so it reads smoothly
+  start to finish, not choppy.
 
 Main characters (always stay true to these descriptions):
 - Nova: {chars['nova']}
@@ -114,15 +135,30 @@ until the total narration across the whole story reaches {minutes * 130}
 words.
 {topic_line}
 {avoid_line}
-Write the story as a sequence of 20 to 30 SEGMENTS. Each segment is one
-short beat of the story - ONE sentence of narration only, paired with a
-description of exactly what should be drawn on screen while THAT single
-sentence is spoken. Keep segments short and granular so the image on
-screen always matches the specific action being narrated at that exact
-moment. The visual must match the narration action precisely (e.g. if
-the narration says "Nova ran from the tornado", the visual for that
-same segment must show Nova running from a tornado - not an earlier or
-later moment).
+Write the story as a sequence of 20 to 30 SEGMENTS, following a clear
+narrative arc: (1) establish the everyday setting and characters, (2) introduce
+a specific problem, question, or goal early on, (3) build through a few
+concrete attempts/events tied to that problem, (4) resolve it clearly by
+the end with the characters learning or achieving something specific. Avoid
+vague scene-hopping - every segment should clearly connect to the one before
+it and move the SAME problem/goal forward, so a viewer always knows what is
+happening and why.
+
+Each segment is one short beat of the story - ONE OR TWO sentences of
+narration or dialogue, paired with a description of exactly what should be
+drawn on screen while that narration is spoken. Keep segments short and
+granular so the image on screen always matches the specific action being
+narrated at that exact moment. The visual must match the narration action
+precisely (e.g. if the narration says "Nova ran from the tornado", the
+visual for that same segment must show Nova running from a tornado - not an
+earlier or later moment).
+
+Each segment also needs a "speaker" field: use "narrator" for scene-setting/
+descriptive lines, or the character's name ("nova", "cat", "panda") when
+that segment is a line of DIALOGUE spoken directly by that character (in
+quotes, first person). Mix narration and character dialogue naturally,
+the way a storybook read-aloud does - this makes the story easier to follow
+and more engaging than a single flat narrating voice throughout.
 
 Return ONLY valid JSON, no markdown fences, no commentary, in this exact
 shape:
@@ -139,7 +175,8 @@ shape:
            "no # symbols, mix of broad and specific terms"],
   "segments": [
     {{
-      "narration": "one or two sentences of the story, spoken aloud here",
+      "speaker": "narrator, or the exact character name (nova/cat/panda) if this line is that character's own spoken dialogue",
+      "narration": "one or two sentences of the story, spoken aloud here - dialogue in quotes if speaker is a character",
       "visual": "exactly what the image should show during this narration - "
                 "specific action, pose, and setting matching this exact line"
     }}
