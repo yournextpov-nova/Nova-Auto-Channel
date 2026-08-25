@@ -13,6 +13,7 @@ import yaml
 from src.generate_script import generate_story
 from src.generate_voice import generate_segment_voiceovers
 from src.generate_clips import generate_all_scene_clips
+from src.generate_thumbnail import generate_thumbnail
 from src.assemble_video import assemble_video
 from src.upload_youtube import upload_video
 
@@ -58,6 +59,19 @@ def main(topic: str | None):
     print("4/5 Assembling synced video...")
     video_path = assemble_video(clip_paths, audio_paths, durations, os.path.join(work_dir, "final.mp4"))
 
+    print("Generating thumbnail...")
+    thumbnail_path = None
+    try:
+        first_frame = os.path.join(work_dir, "scenes", "scene_00_frame.png")
+        thumbnail_path = generate_thumbnail(
+            source_frame_path=first_frame,
+            thumb_text=story.get("thumbnail_text") or story["title"][:20],
+            out_path=os.path.join(work_dir, "thumbnail.jpg"),
+        )
+    except Exception as e:
+        # Don't let a thumbnail problem stop the whole video from uploading.
+        print(f"Thumbnail generation failed, continuing without one: {e}")
+
     print("5/5 Uploading to YouTube...")
     ai_tags = story.get("tags") or []
     tags = list(dict.fromkeys(ai_tags + config["upload"]["default_tags"]))[:30]
@@ -68,6 +82,7 @@ def main(topic: str | None):
         tags=tags,
         category_id=config["upload"]["category_id"],
         privacy_status=config["upload"]["privacy_status"],
+        thumbnail_path=thumbnail_path,
     )
     print("Done!")
 
