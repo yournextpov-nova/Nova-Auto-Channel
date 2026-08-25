@@ -167,6 +167,11 @@ shape:
             "(include words like 'Kids Story', 'Bedtime Story', 'Animated "
             "Story', 'Nova' where natural), specific and curiosity-driving, "
             "not generic",
+  "thumbnail_text": "a SHORT, punchy phrase, 2-5 words max, that would look "
+                     "great as big bold text on a YouTube thumbnail - "
+                     "curiosity-driving, NOT the same as the title (too long "
+                     "for a thumbnail), e.g. 'THE LOST STAR' or 'A BIG "
+                     "SURPRISE!'",
   "description": "a detailed 4-6 sentence YouTube description summarizing "
                   "the story and characters, written for SEO with natural "
                   "keyword use, followed on a new line by 8-12 relevant "
