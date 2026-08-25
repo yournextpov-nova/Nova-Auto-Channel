@@ -104,8 +104,14 @@ Main characters (always stay true to these descriptions):
 - The panda: {chars['panda']}
 
 Audience: {audience}
-Target spoken length: about {minutes} minutes (roughly {minutes * 130} words
-total across all segments).
+Target spoken length: This MUST total approximately {minutes * 130} words of
+narration across all segments combined (this is a hard requirement, not a
+suggestion - the previous story was too short at roughly half this length).
+To hit this, write 20 to 30 segments, and make sure each segment's
+narration is a FULL 1-2 sentences (roughly 25-40 words each) rather than
+one short sentence - count your words as you go and keep writing segments
+until the total narration across the whole story reaches {minutes * 130}
+words.
 {topic_line}
 {avoid_line}
 Write the story as a sequence of 20 to 30 SEGMENTS. Each segment is one
@@ -146,10 +152,19 @@ shape:
         raw = raw.strip("`")
         raw = raw.split("json", 1)[-1] if raw.lower().startswith("json") else raw
     try:
-        return json.loads(raw)
+        story = json.loads(raw)
     except json.JSONDecodeError:
         from json_repair import repair_json
-        return json.loads(repair_json(raw))
+        story = json.loads(repair_json(raw))
+
+    total_words = sum(len(seg.get("narration", "").split()) for seg in story.get("segments", []))
+    target_words = minutes * 130
+    print(f"Story length check: {total_words} words (target ~{target_words})")
+    if total_words < target_words * 0.6:
+        print(f"WARNING: story is well under the {minutes}-minute target - "
+              f"final video will likely be much shorter than expected.")
+
+    return story
 
 
 if __name__ == "__main__":
