@@ -107,15 +107,15 @@ def generate_frame_image(scene_description: str, config: dict, out_path: str,
     payload = {"prompt": prompt}
 
     last_status, last_text = None, ""
-    for attempt in range(6):
+    for attempt in range(8):
         try:
             r = requests.post(FLUX_URL, headers=headers, json=payload, timeout=180)
         except requests.exceptions.RequestException as e:
             print(f"Image request error on attempt {attempt + 1}: {e}")
-            time.sleep(15 * (attempt + 1))
+            time.sleep(20 * (attempt + 1))
             continue
         if r.status_code == 429:
-            wait = 20 * (attempt + 1)
+            wait = 25 * (attempt + 1)
             print(f"Image rate limited, waiting {wait}s...")
             time.sleep(wait)
             continue
@@ -328,8 +328,17 @@ def generate_all_scene_clips(scenes: list[str], durations: list[float], config: 
             clip_paths.append(final_clip)
             continue
         if i > 0:
-            time.sleep(3)  # be polite to Agnes's free 20 RPM limit
+            time.sleep(8)  # more breathing room for Cloudflare's rate limit -
+            # 3s wasn't enough once stories grew to ~29 scenes
         print(f"  scene {i + 1}/{len(scenes)} ({duration:.1f}s)...")
-        clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i)
+        try:
+            clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i)
+        except Exception as e:
+            # One scene hitting a wall (sustained rate limiting, etc.)
+            # shouldn't lose the rest of a multi-hour run. Cool down hard
+            # and try this one scene again, once, before giving up.
+            print(f"Scene {i + 1} failed ({e}). Cooling down 3 minutes before one retry...")
+            time.sleep(180)
+            clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i)
         clip_paths.append(clip_path)
     return clip_paths
