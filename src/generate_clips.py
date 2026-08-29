@@ -171,14 +171,15 @@ def _frames_for(seconds: float) -> int:
     return FRAME_OPTIONS[-1]
 
 
-def _submit_agnes_video(prompt: str, image_url: str, num_frames: int) -> str:
+def _submit_agnes_video(prompt: str, image_url: str, num_frames: int,
+                         width: int = 1152, height: int = 768) -> str:
     headers = {"Authorization": f"Bearer {AGNES_API_KEY}", "Content-Type": "application/json"}
     payload = {
         "model": AGNES_MODEL,
         "prompt": prompt,
         "image": image_url,
-        "width": 1152,
-        "height": 768,
+        "width": width,
+        "height": height,
         "num_frames": num_frames,
         "frame_rate": FRAME_RATE,
     }
@@ -231,13 +232,14 @@ def _poll_agnes_video(task_id: str, timeout: int = 900) -> str:
     raise RuntimeError(f"Agnes video task {task_id} timed out after {timeout}s")
 
 
-def _animate_one_clip(prompt: str, image_url: str, seconds: float, out_path: str) -> float:
+def _animate_one_clip(prompt: str, image_url: str, seconds: float, out_path: str,
+                       width: int = 1152, height: int = 768) -> float:
     """Submits + polls + downloads one Agnes clip. Returns the actual clip length."""
     num_frames = _frames_for(seconds)
     last_err = None
     for attempt in range(4):
         try:
-            task_id = _submit_agnes_video(prompt, image_url, num_frames)
+            task_id = _submit_agnes_video(prompt, image_url, num_frames, width, height)
             video_url = _poll_agnes_video(task_id)
             r = requests.get(video_url, timeout=120)
             r.raise_for_status()
@@ -270,14 +272,23 @@ def _match_duration(clip_path: str, target_seconds: float, out_path: str):
 
 
 def generate_clip_for_scene(scene_description: str, config: dict, duration: float,
-                             out_dir: str, index: int, seed: int) -> str:
-    """One segment's animated clip, chaining multiple Agnes calls if needed."""
+                             out_dir: str, index: int, seed: int, portrait: bool = False) -> str:
+    """One segment's animated clip, chaining multiple Agnes calls if needed.
+    portrait=True generates vertical (9:16) frames/clips for YouTube Shorts
+    instead of the usual landscape (16:9) long-form video."""
     os.makedirs(out_dir, exist_ok=True)
     image_prompt = build_prompt(scene_description, config)
     motion_prompt = build_motion_prompt(scene_description)
 
+    if portrait:
+        img_width, img_height = 768, 1344
+        clip_width, clip_height = 768, 1152
+    else:
+        img_width, img_height = 1344, 768
+        clip_width, clip_height = 1152, 768
+
     frame_path = os.path.join(out_dir, f"scene_{index:02d}_frame.png")
-    generate_frame_image(scene_description, config, frame_path, seed=seed)
+    generate_frame_image(scene_description, config, frame_path, width=img_width, height=img_height, seed=seed)
     image_url = upload_to_public_url(frame_path)
 
     remaining = duration
@@ -286,7 +297,8 @@ def generate_clip_for_scene(scene_description: str, config: dict, duration: floa
     while remaining > 0:
         this_len = min(remaining, MAX_CLIP_SECONDS)
         part_out = os.path.join(out_dir, f"scene_{index:02d}_part{part}.mp4")
-        actual_len = _animate_one_clip(motion_prompt, image_url, this_len, part_out)
+        actual_len = _animate_one_clip(motion_prompt, image_url, this_len, part_out,
+                                        width=clip_width, height=clip_height)
         part_paths.append(part_out)
         remaining -= actual_len
         part += 1
@@ -317,7 +329,7 @@ def generate_clip_for_scene(scene_description: str, config: dict, duration: floa
 
 
 def generate_all_scene_clips(scenes: list[str], durations: list[float], config: dict,
-                              out_dir: str = "scenes"):
+                              out_dir: str = "scenes", portrait: bool = False):
     os.makedirs(out_dir, exist_ok=True)
     clip_paths = []
     base_seed = int(time.time()) % 100000
@@ -332,13 +344,13 @@ def generate_all_scene_clips(scenes: list[str], durations: list[float], config: 
             # 3s wasn't enough once stories grew to ~29 scenes
         print(f"  scene {i + 1}/{len(scenes)} ({duration:.1f}s)...")
         try:
-            clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i)
+            clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i, portrait)
         except Exception as e:
             # One scene hitting a wall (sustained rate limiting, etc.)
             # shouldn't lose the rest of a multi-hour run. Cool down hard
             # and try this one scene again, once, before giving up.
             print(f"Scene {i + 1} failed ({e}). Cooling down 3 minutes before one retry...")
             time.sleep(180)
-            clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i)
+            clip_path = generate_clip_for_scene(scene, config, duration, out_dir, i, base_seed + i, portrait)
         clip_paths.append(clip_path)
     return clip_paths
