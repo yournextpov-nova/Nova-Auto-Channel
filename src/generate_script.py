@@ -71,10 +71,14 @@ def _call_groq(prompt: str) -> str:
     raise RuntimeError(f"Groq returned empty content after retries. Last response: {last_error.text[:500] if last_error is not None else 'none'}")
 
 
-def generate_story(config: dict, topic: str | None = None) -> dict:
-    """Returns {"title", "description", "tags", "segments": [{"narration","visual"}]}"""
+def generate_story(config: dict, topic: str | None = None, short: bool = False) -> dict:
+    """Returns {"title", "description", "tags", "segments": [{"narration","visual"}]}
+
+    short=True generates a much shorter, punchier story meant for a
+    YouTube Short (under 60 seconds) instead of the usual long-form video -
+    different pacing entirely: hook immediately instead of a calm opener,
+    one quick moment/gag instead of a full multi-beat arc."""
     chars = config["characters"]
-    minutes = config["video"]["target_length_minutes"]
     audience = config["video"]["audience"]
     recent_titles = config["video"].get("recent_titles", [])
 
@@ -96,6 +100,56 @@ def generate_story(config: dict, topic: str | None = None) -> dict:
             f"\nIMPORTANT: Do NOT repeat these recently used story titles or "
             f"their plots - write something genuinely different: {recent_list}\n"
         )
+
+    if short:
+        target_words = 110  # roughly 45-50s spoken at a natural pace
+        structure_block = f"""
+Write the story as a sequence of 6 to 10 SEGMENTS for a YouTube SHORT
+(vertical, under 60 seconds total) - completely different pacing than a
+long-form video:
+- SEGMENT 1 MUST hook immediately - start right at the fun/surprising
+  moment, no slow scene-setting, no calm opener. Shorts lose viewers in
+  the first 1-2 seconds if nothing is happening yet.
+- Tell ONE quick moment, gag, or mini-surprise beginning to end - not a
+  full multi-part story arc. Think "one cute/funny thing happens" not
+  "problem, attempts, resolution."
+- The VERY LAST segment must be a single quick, punchy narrator line
+  inviting a subscribe/follow - very short, energetic, in character.
+- This MUST total approximately {target_words} words of narration across
+  all segments combined - keep it tight, every word earns its place.
+"""
+    else:
+        minutes = config["video"]["target_length_minutes"]
+        target_words = minutes * 130
+        structure_block = f"""
+Target spoken length: This MUST total approximately {target_words} words of
+narration across all segments combined (this is a hard requirement, not a
+suggestion - the previous story was too short at roughly half this length).
+To hit this, write 21 to 31 segments, and make sure each segment's
+narration is a FULL 1-2 sentences (roughly 25-40 words each) rather than
+one short sentence - count your words as you go and keep writing segments
+until the total narration across the whole story reaches {target_words}
+words.
+{topic_line}
+{avoid_line}
+Write the story as a sequence of 21 to 31 SEGMENTS, following a clear
+narrative arc: (1) SEGMENT 1 MUST be a calm, welcoming opener that simply
+shows where we are and who is there - a normal, peaceful moment BEFORE
+anything happens (e.g. Nova humming at breakfast, the cat stretching in a
+sunbeam) - never open mid-action or mid-conflict, the viewer needs a beat
+to settle in first, (2) introduce a specific problem, question, or goal
+shortly after that calm opener, (3) build through a few concrete attempts/
+events tied to that problem, (4) resolve it clearly with the characters
+learning or achieving something specific, (5) the VERY LAST segment must be
+a short, warm narrator sign-off in character (not a generic ad-read) that
+naturally invites the viewer to subscribe for the next adventure - e.g. in
+Nova's own warm storyteller voice, something like "If you had fun today,
+hit subscribe so you don't miss our next adventure together!" - keep it
+short, friendly, and in the spirit of the story, not salesy. Avoid vague
+scene-hopping - every middle segment should clearly connect to the one
+before it and move the SAME problem/goal forward, so a viewer always knows
+what is happening and why.
+"""
 
     prompt = f"""
 You write scripts for a kids' animated YouTube channel. You are a warm,
@@ -119,25 +173,9 @@ Main characters (always stay true to these descriptions):
 - The panda: {chars['panda']}
 
 Audience: {audience}
-Target spoken length: This MUST total approximately {minutes * 130} words of
-narration across all segments combined (this is a hard requirement, not a
-suggestion - the previous story was too short at roughly half this length).
-To hit this, write 20 to 30 segments, and make sure each segment's
-narration is a FULL 1-2 sentences (roughly 25-40 words each) rather than
-one short sentence - count your words as you go and keep writing segments
-until the total narration across the whole story reaches {minutes * 130}
-words.
-{topic_line}
-{avoid_line}
-Write the story as a sequence of 20 to 30 SEGMENTS, following a clear
-narrative arc: (1) establish the everyday setting and characters, (2) introduce
-a specific problem, question, or goal early on, (3) build through a few
-concrete attempts/events tied to that problem, (4) resolve it clearly by
-the end with the characters learning or achieving something specific. Avoid
-vague scene-hopping - every segment should clearly connect to the one before
-it and move the SAME problem/goal forward, so a viewer always knows what is
-happening and why.
-
+{topic_line if short else ""}
+{avoid_line if short else ""}
+{structure_block}
 Each segment is one short beat of the story - ONE OR TWO sentences of
 narration or dialogue, paired with a description of exactly what should be
 drawn on screen while that narration is spoken. Keep segments short and
@@ -194,10 +232,9 @@ shape:
         story = json.loads(repair_json(raw))
 
     total_words = sum(len(seg.get("narration", "").split()) for seg in story.get("segments", []))
-    target_words = minutes * 130
     print(f"Story length check: {total_words} words (target ~{target_words})")
     if total_words < target_words * 0.6:
-        print(f"WARNING: story is well under the {minutes}-minute target - "
+        print(f"WARNING: story is well under target - "
               f"final video will likely be much shorter than expected.")
 
     return story
