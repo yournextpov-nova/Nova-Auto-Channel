@@ -2,7 +2,7 @@ name: Daily YouTube Auto-Upload
 
 on:
   schedule:
-    - cron: "0 14 * * *"
+    - cron: "0 14 1-31/2 * *"
   workflow_dispatch: {}
 
 jobs:
