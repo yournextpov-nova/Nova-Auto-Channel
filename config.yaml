@@ -40,7 +40,6 @@ video:
   - Nova's Starry Garden
   - Starlight Blooms
   recent_titles:
-  - "Nova's Whimsical Market Day Adventure \u2013 Kids Animated Story with Cat & Panda"
   - 'Nova''s Silly Sound Mix-Up: A Fun Kids Bedtime Story with Cat & Panda'
   - "Nova's Whimsical Riverboat Adventure \u2013 Kids Animated Bedtime Story with\
     \ Cat & Panda"
@@ -62,6 +61,7 @@ video:
   - "Nova's Sparkling Talent Show Surprise \u2013 Kids Animated Bedtime Story"
   - "Nova Helps a Neighbor in Need \u2013 Gentle Kids Bedtime Story with Cat & Panda"
   - "Nova's Silly Soup Slip-Up \u2013 Fun Kids Bedtime Story with Cat & Panda"
+  - "Nova's Glitchy Game Adventure \u2013 Kids Bedtime Story with Cat & Panda"
 upload:
   privacy_status: public
   category_id: '1'
